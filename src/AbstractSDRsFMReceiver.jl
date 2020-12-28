@@ -14,6 +14,16 @@ using PlotlyJS;
 
 FLAG = false;
 
+"""
+Apply FM demodulation to the input signal
+It applies Arg(sig[n+1] sig*[n]) where * stands for complex conjugate
+# --- Syntax
+out = fmDemod(sig)
+# --- Input parameters
+- sig : Input signal (expected to be complex Vector)
+# --- Output parameters
+- out : Demodulated signal (Float64 Vector)
+"""
 function fmDemod(sig)
     out = zeros(Float64,length(sig));
     @inbounds @simd for n ∈ (1:length(sig)-1)
@@ -22,6 +32,17 @@ function fmDemod(sig)
     return out;
 end
 
+"""
+Init a Low pass filter (based on FIR filter synthesis) that cut @bandPass
+# --- Syntax
+h = genFilter(sizeL,bandPass,samplingRate)
+# --- Input parameters
+- sizeL : Desired filter size 
+- bandPass : Max frequency in bandpass 
+- samplingRate : sampling frequency 
+# --- Output parameters
+- h : filter (Vector{Float64}(sizeL,1))
+"""
 function genFilter(sizeL,bandPass,samplingRate)
     # --- Init frequency response 
     cuttOff = bandPass / samplingRate;
@@ -41,10 +62,44 @@ function genFilter(sizeL,bandPass,samplingRate)
     h  = hRep .* wind;
 end 
 
+"""
+Apply the filter by direct convoltuion and downsample 
+# --- Syntax
+ out = applyFilter(sig,h,decim)
+# --- Input parameters
+- sig : Signal to be filtered and downsampled (of size N)
+- h : Filter to apply 
+- decim : Desired decimation factor (should be Int)
+# --- Output parameters
+- out : filtered and downsampled data (size N÷decim)
+"""
 function applyFilter(x,h,decim)
     l = length(h)÷2;
     return conv(x,h)[1+l:decim:end-l];
 end
+
+"""
+Compute Power Spectral Density (PSD) of signal and returns a tuple (frequency,power) ready to be computed 
+# --- Syntax
+(fs,pow) = getSpectrum(f,sig,N)
+# --- Input parameters
+- f : sampling frequency (in Hz)
+- sig : Signal to be analyzed
+# --- Output parameters
+- fs : Vector of frequencies 
+- pow: Vector of power
+"""
+function getSpectrum(fs,sig;N=nothing)
+    if isnothing(N) 
+        N = length(sig);
+    end
+    freqAx = collect(((0:N-1)./N .- 0.5)*fs);
+    ss	   = @view sig[1:N];
+    y	   = 10*log10.(abs2.(fftshift(fft(ss))));
+    return (freqAx,y);
+end
+getSpectrum(sig) = getSpectrum(1,sig);
+
 
 function main(sdr,carrierFreq,gain=20,p=nothing;kwargs...)
     # --- Simulation parameters
@@ -74,9 +129,9 @@ function main(sdr,carrierFreq,gain=20,p=nothing;kwargs...)
             Audio.play(stream,audio);
             # --- Plot 
             deletetraces!(p,0);
-			(x,y) = getSpectrum(samplingRate,sig[1:128]);
-			pl1	  = scatter(; x,y, name=" ");
-			addtraces!(p,pl1);
+            (x,y) = getSpectrum(samplingRate,sig[1:128]);
+            pl1	  = scatter(; x,y, name=" ");
+            addtraces!(p,pl1);
             # Exit 
             if FLAG == false;
                 print("BREAK");
@@ -92,7 +147,15 @@ function main(sdr,carrierFreq,gain=20,p=nothing;kwargs...)
     close(radio);
 end
 
-
+"""
+Main call to the Graphical User Interace (GUI)
+# --- Syntax
+gui()
+# --- Input parameters
+- 
+# --- Output parameters
+- 
+"""
 function gui()
     global FLAG = false;
     # ----------------------------------------------------
@@ -104,7 +167,8 @@ function gui()
     # --- Creating some stuff related to args 
     widgetArgs = textbox(hint=""; value="addr=192.168.10.13");
     # --- Widget for radio configuration 
-    options = Observable([:e310,:uhd])
+    sdrList = AbstractSDRs.getSupportedSDRs();
+    options = Observable(sdrList);
     wdg = dropdown(options);
     # --- Start button 
     startButton = button("Start !"; value=0)
@@ -118,22 +182,22 @@ function gui()
     layout = vbox(layout,widgetGain);
     layout = hbox(layout,pad(3em,startButton));
     # 
-	plotLayout = Layout(;
-						width = 600,
-						height = 400,
-						title=" Spectrum ",
-						xaxis_title=" Frequency  ",
-						yaxis_title=" Power ",
-						xaxis_showgrid=true, yaxis_showgrid=true,
-                        yaxis_range =[-80,0]
-						)
-	N = 100;
-	x = 0:N-1;
-	y = zeros(N);
-	pl1	  = scatter(; x,y, name=" ");
-	p = plot(pl1,plotLayout)
+    plotLayout = Layout(;
+        width = 600,
+        height = 400,
+        title=" Spectrum ",
+        xaxis_title=" Frequency  ",
+        yaxis_title=" Power ",
+        xaxis_showgrid=true, yaxis_showgrid=true,
+        yaxis_range =[-80,0]
+        )
+    N = 100;
+    x = 0:N-1;
+    y = zeros(N);
+    pl1	  = scatter(; x,y, name=" ");
+    p = plot(pl1,plotLayout)
     layout = vbox(layout,p);
-    
+
     body!(w,layout);
     # ----------------------------------------------------
     # --- 
