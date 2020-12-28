@@ -1,0 +1,4 @@
+name = "AbstractSDRsFMReceiver"
+uuid = "08253929-05bf-444b-a301-87a031121a2f"
+authors = ["Robin Gerzaguet <robin.gerzaguet@irisa.fr>"]
+version = "0.1.0"
