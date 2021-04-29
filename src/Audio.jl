@@ -1,10 +1,10 @@
 module Audio 
 
 # Audio modules (to load and monitor data)
+# import LibSndFile
 using PortAudio		  # Handle audio
 using FileIO
 using Suppressor	  # Disable warning from PortAudio
-import LibSndFile
 using DSP
 
 # --- Calling audio functions

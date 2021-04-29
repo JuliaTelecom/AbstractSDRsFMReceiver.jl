@@ -3,9 +3,13 @@ module AbstractSDRsFMReceiver
 using AbstractSDRs;
 using DSP; 
 using FFTW;
-using GetSpectrum
+
+
 include("Audio.jl");
 using .Audio
+
+include("GetSpectrum.jl")
+using .GetSpectrum
 
 using Blink;        # For GUI in electron 
 using Interact;      # For Widget and interactions 
